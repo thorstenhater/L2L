@@ -52,7 +52,6 @@ Other terms such as Trajectory, individual-dict, are defined as they are introdu
 Iteration loop
 ~~~~~~~~~~~~~~
 
-
 The progress of execution in the script shown in :doc:`l2l-bin` goes as follows:
 
 1. At the beginning, a *population* of *individuals*  is created by the `Optimizer` by calling the `Optimizee`'s
@@ -282,16 +281,23 @@ See the class documentation for more details: :class:`~l2l.optimizers.optimizer.
 Running an L2L simulation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before running a simulation for the first time, you need to specify the output directory for your results. To do so,
-create a new file :file:`bin/path.conf` with a single entry containing an absolute path or a path relative to the top-
-level L2L directory, e.g. :file:`./output_results/`, and create an empty folder at the path you specified. You also need
-to commit any staged files to your local repo. Failing to follow these instructions raises an error when trying to run
-any of the test simulations.
-
 To run a L2L simulation, copy the file :file:`bin/l2l-template.py` (see :doc:`l2l-bin`) to
 :file:`bin/l2l-{optimizeeabbr}-{optimizerabbr}.py`. Then fill in all the **TODOs** . Especially the parts with the
-initialization of the appropriate `Optimizers` and `Optimizees`. The rest of the code should be left in place for
-logging and recording. See the source of :file:`bin/l2l-template.py` for more details.
+initialization of the appropriate `Optimizers` and `Optimizees`. The main enty point to setup and run the simulation
+is the experiment class :class:`~l2l.utils.experiment.Experiment`. There are three methods which helps to prepare, run
+and end the simulations.
+
+* The constructor of the experiment class expects a path to store the results to. A folder will be created if it
+  does not exist
+* :meth:`~l2l.utils.experiment.Experiment.prepare_experiment` prepares the experiment. Optional arguments can be
+  given such as a jube parameter dictionary.
+* :meth:`~l2l.utils.experiment.Experiment.run_experiment` starts the simulation. It expects the `optimizee` and ]
+  `optimizer` objects, corresponding parameters can be optionally given as well but are only important for
+  logging purposes.
+* :meth:`~l2l.utils.experiment.Experiment.end_experiment` ends the experiment by instructing the `optimizer` to stop
+  and closing the logging.
+
+See the source of :file:`bin/l2l-template.py` for more details.
 
 Execution setup
 ~~~~~~~~~~~~~~~
