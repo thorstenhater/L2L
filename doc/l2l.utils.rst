@@ -24,3 +24,11 @@ ParamterGroup
     :members:
     :undoc-members:
     :show-inheritance:
+
+Experiment
+----------
+
+.. autoclass:: l2l.utils.experiment.Experiment
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -11,9 +11,8 @@ import l2l.utils.JUBE_runner as jube
 class Experiment(object):
     def __init__(self, root_dir_path):
         """
-        Prepares and starts the l2l simulation.
-
-        For an example see `L2L/bin/l2l-template.py`
+        Prepares and starts the l2l simulation. For an example see
+        `L2L/bin/l2l-template.py`
 
         :param root_dir_path: str, Path to the results folder. Accepts relative
         paths. Will check if the folder exists and create if not.
@@ -28,19 +27,25 @@ class Experiment(object):
 
     def prepare_experiment(self, **kwargs):
         """
-        Prepare the experiment by creating the enviroment and
-        :param kwargs: optional dictionary, contains
-            - name: str, name of the run, Default: L2L-run
-            - trajectory_name: str, name of the trajectory, Default: trajectory
-            - log_stdout: bool, if stdout should be sent to logs, Default:False
-            - jube_parameter: dict, User specified parameter for jube.
-                See notes section for default jube parameter
-            - multiprocessing, bool, enable multiprocessing, Default: False
-        :return traj, trajectory object
-        :return all_jube_params, dict, a dictionary with all parameters for jube
-            given by the user and default ones
+        Prepare the experiment by creating the environment
 
-        :notes
+        :param kwargs: optional dictionary, contains
+
+            - name: str, name of the run, Default: L2L-run
+
+            - trajectory_name: str, name of the trajectory, Default: trajectory
+
+            - log_stdout: bool, if stdout should be sent to logs, Default:False
+
+            -  jube_parameter: dict, User specified parameter for jube.
+               See notes section for default jube parameter
+
+            - multiprocessing, bool, enable multiprocessing, Default: False
+        :return: traj, trajectory object
+        :return:  all_jube_params, dict, a dictionary with all parameters for jube
+                 given by the user and default ones
+
+        :notes:
            Default JUBE parameters are:
             - scheduler: None,
             - submit_cmd: sbatch,
@@ -54,9 +59,11 @@ class Experiment(object):
             - err_file: stderr,
             - out_file: stdout,
             - tasks_per_job: 1,
+
             - exec: python3 + self.paths.simulation_path +
-                "run_files/run_optimizee.py"
-            - ready_file: self.paths.root_dir_path + "ready_files/ready_w_"
+              "run_files/run_optimizee.py"
+
+            - ready_file: self.paths.root_dir_path + "ready_files/ready\_w\_"
             - work_path: self.paths.root_dir_path,
             - paths_obj: self.paths
         """
@@ -174,8 +181,8 @@ class Experiment(object):
         Ends the experiment and disables the logging
 
         :param optimizer: optimizer object
-        :return traj, trajectory object
-        :return path, Path object
+        :return: traj, trajectory object
+        :return: path, Path object
         """
         # Outer-loop optimizer end
         optimizer.end(self.traj)

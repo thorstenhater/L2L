@@ -289,53 +289,56 @@ and end the simulations.
 
 * The constructor of the experiment class expects a path to store the results to. A folder will be created if it
   does not exist
-* :meth:`~l2l.utils.experiment.Experiment.prepare_experiment` prepares the experiment. Optional arguments can be
+* :meth:`~l2l.utils.experiment.Experiment.prepare_experiment()` prepares the experiment. Optional arguments can be
   given such as a jube parameter dictionary.
-* :meth:`~l2l.utils.experiment.Experiment.run_experiment` starts the simulation. It expects the `optimizee` and ]
+* :meth:`~l2l.utils.experiment.Experiment.run_experiment()` starts the simulation. It expects the `optimizee` and
   `optimizer` objects, corresponding parameters can be optionally given as well but are only important for
   logging purposes.
-* :meth:`~l2l.utils.experiment.Experiment.end_experiment` ends the experiment by instructing the `optimizer` to stop
+* :meth:`~l2l.utils.experiment.Experiment.end_experiment()` ends the experiment by instructing the `optimizer` to stop
   and closing the logging.
 
 See the source of :file:`bin/l2l-template.py` for more details.
 
+
 Execution setup
 ~~~~~~~~~~~~~~~
 The L2L framework works with JUBE in order to deploy the execution of the different instances of the optimizee on
-the available computational resources. This requires that the trajectory contains a parameter group called JUBE_params
+the available computational resources. This requires that the trajectory contains a parameter group called `JUBE_params`
 which contains details for the right execution of the program.
 
 **Mandatory** steps to define the execution of the optimizees:
-1. Add a parameter group to the :obj: traj called JUBE_params using its :meth: f_add_parameter_group.
-2. Setup the execution command :attr: exec by using the trajectory :meth: f_add_parameter_to_group.
-Add parameter to group receives three parameters, which in this case should be specified as:
-group_name=JUBE_params, key="exec", val=<execution command string>
-This <execution command string> will be used to launch individual optimizees. An example of a simple call without using MPI calls
-is: "python " + os.path.join(paths.simulation_path, "run_files/run_optimizee.py"
-3. Setup the ready and working paths :attr: exec by using the trajectory :meth: f_add_parameter_to_group.
-Add parameter to group receives three parameters, which in this case should be specified as:
-group_name=JUBE_params, key="paths", val=<path object>
-<path object> should contain the root working path. An example of this path is:
-paths = Paths(name, dict(run_num='test'), root_dir_path=<root_dir_path>, suffix="-example")
+
+*   Add a parameter group to the :obj:`traj` called `JUBE_params` using its :meth:`f_add_parameter_group`.
+
+*   Setup the execution command :attr:`exec` by using the trajectory :meth:`f_add_parameter_to_group`.
+    Add parameter to group receives three parameters, which in this case should be specified as: `group_name=JUBE_params, key="exec", val=<execution command string>`
+    This `<execution command string>` will be used to launch individual `optimizees`. An example of a simple call without using MPI calls is: `"python " + os.path.join(paths.simulation_path, "run_files/run_optimizee.py"`
+
+*   Setup the ready and working paths :attr:`exec` by using the trajectory :meth:`f_add_parameter_to_group`.
+    Add parameter to group receives three parameters, which in this case should be specified as:
+    `group_name=JUBE_params, key="paths", val=<path object>`
+    `<path object>` should contain the root working path. An example of this path is:
+    `paths = Paths(name, dict(run_num='test'), root_dir_path=<root_dir_path>, suffix="-example")`
 
 In order to launch simulations on a laptop or a local cluster without a scheduler, only the mandatory parameters must
 be specified. These parameters are part of the template.
 
 To launch the simulations on a cluster with a scheduler, the following optional parameters must be defined. They currently match
 slurm but this can also be adjusted to other schedulers.
-1. Name of the scheduler, :atr: "scheduler", e.g. "Slurm"
-2. Command to submit jobs to the schedulers, :atr: "submit_cmd", e.g. "sbatch"
-3. Template file for the particular scheduler, :atr: "job_file", e.g. "job.run"
-4. Number of nodes to request for each run, :atr: "nodes", e.g. "1"
-5. Requested time for the compute resources, :atr: "walltime", e.g. "00:01:00"
-6. MPI Processes per node, :atr: "ppn", e.g. "1"
-7. CPU cores per MPI process, :atr: "cpu_pp", e.g. "1"
-8. Threads per process, :atr: "threads_pp", e.g. "1"
-9. Type of emails to be sent from the scheduler, :atr: "mail_mode", e.g. "ALL"
-10. Email to notify events from the scheduler, :atr: "mail_address", e.g. "me@mymail.com"
-11. Error file for the job, :atr: "err_file", e.g. "stderr"
-12. Output file for the job, :atr: "out_file", e.g. "stdout"
-13. MPI Processes per job, :atr: "tasks_per_job", e.g. "1"
+
+1. Name of the scheduler, :attr:`"scheduler"`, e.g. "Slurm"
+2. Command to submit jobs to the schedulers, :attr:`"submit_cmd"`, e.g. "sbatch"
+3. Template file for the particular scheduler, :attr:`"job_file"`, e.g. "job.run"
+4. Number of nodes to request for each run, :attr:`"nodes"`, e.g. "1"
+5. Requested time for the compute resources, :attr:`"walltime"`, e.g. "00:01:00"
+6. MPI Processes per node, :attr:`"ppn"`, e.g. "1"
+7. CPU cores per MPI process, :attr:`"cpu_pp"`, e.g. "1"
+8. Threads per process, :attr:`"threads_pp"`, e.g. "1"
+9. Type of emails to be sent from the scheduler, :attr:`"mail_mode"`, e.g. "ALL"
+10. Email to notify events from the scheduler, :attr:`"mail_address"`, e.g. "me@mymail.com"
+11. Error file for the job, :attr:`"err_file"`, e.g. "stderr"
+12. Output file for the job, :attr:`"out_file"`, e.g. "stdout"
+13. MPI Processes per job, :atr:`"tasks_per_job"`, e.g. "1"
 
 See the :file: 'l2l-template-scheduler.py' for a base file with all these parameters.
 
