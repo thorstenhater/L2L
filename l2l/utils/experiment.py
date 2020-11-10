@@ -67,12 +67,7 @@ class Experiment(object):
 
         trajectory_name = kwargs.get('trajectory_name', 'trajectory')
 
-
-<< << << < HEAD
-        self.paths = Paths(name, dict(),
-== == ===
-        self.paths=Paths(name, {},
->>>>>> > master
+        self.paths = Paths(name, {},
                            root_dir_path=self.root_dir_path,
                            suffix="-" + trajectory_name)
 
