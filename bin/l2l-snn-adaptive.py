@@ -10,16 +10,16 @@ def run_experiment():
     traj, _ = experiment.prepare_experiment(jube_parameter={}, name="L2L-ENKF")
 
     # Optimizee params
-    optimizee_seed = 123
     optimizee_parameters = AdaptiveOptimizeeParameters(
-        seed=optimizee_seed, path=experiment.root_dir_path,
-        record_spiking_firingrate=True, save_plot=False)
+        path=experiment.root_dir_path,
+        record_spiking_firingrate=True,
+        save_plot=False)
     # Inner-loop simulator
     optimizee = AdaptiveOptimizee(traj, optimizee_parameters)
 
     # Outer-loop optimizer initialization
     optimizer_seed = 1234
-    pop_size = 2
+    pop_size = 1
     optimizer_parameters = EnsembleKalmanFilterParameters(gamma=0.01,
                                                           maxit=1,
                                                           n_iteration=3,
@@ -36,8 +36,10 @@ def run_experiment():
                                      optimizee_fitness_weights=(1.,),
                                      parameters=optimizer_parameters,
                                      optimizee_bounding_func=None)
-    experiment.run_experiment(optimizee, optimizee_parameters, optimizer,
-                              optimizer_parameters)
+    experiment.run_experiment(optimizee=optimizee,
+                              optimizee_parameters=optimizee_parameters,
+                              optimizer=optimizer,
+                              optimizer_parameters=optimizer_parameters)
 
     experiment.end_experiment(optimizer)
 

@@ -620,7 +620,7 @@ class AdaptiveOptimizee(Optimizee):
         print('now replacing connection weights')
         for (s, t, w) in zip(sources, targets, weights):
             print("Source {},Target {}, Weight {}".format(s, t, float(int(w))))
-           syn_spec = {'weight': float(int(w)),
+            syn_spec = {'weight': float(int(w)),
                         'model': 'static_synapse'}
             nest.Connect(pre=tuple([s]), post=tuple([t]),
                          syn_spec=syn_spec,
