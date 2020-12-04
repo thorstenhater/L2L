@@ -111,6 +111,7 @@ class EnsembleKalmanFilter(Optimizer):
         self.best_fitness = 0.
         self.best_individual = None
         self.current_fitness = np.inf
+        self.fitness_all = []
 
         # self.targets = parameters.observations
 
@@ -190,10 +191,10 @@ class EnsembleKalmanFilter(Optimizer):
         model_outs = model_outs.reshape((ensemble_size,
                                          len(self.target_label),
                                          traj.n_batches))
-        logger.info('Sorted Fitness {}'.format(np.sort([traj.current_results[
-            i][1]['fitness']
-            for i in
-            range(ensemble_size)])))
+        current_res = np.sort([traj.current_results[i][1]['fitness'] for i in
+                               range(ensemble_size)])
+        logger.info('Sorted Fitness {}'.format(current_res))
+        self.fitness_all.append(current_res)
         logger.info(
             'Best fitness {} in generation {}'.format(self.current_fitness,
                                                       self.g))
@@ -303,6 +304,20 @@ class EnsembleKalmanFilter(Optimizer):
         plt.close()
 
     @staticmethod
+    def plot_fitnesses(fitnesses):
+        std = np.std(fitnesses, axis=1)
+        mu = np.mean(fitnesses, axis=1)
+        lower_bound = mu - std
+        upper_bound = mu + std
+        plt.plot(mu, 'o-')
+        plt.fill_between(range(len(mu)), lower_bound, upper_bound, alpha=0.3)
+        # plt.plot(np.ones_like(f_) * i, np.ravel(f), '.')
+        plt.xlabel('Generations')
+        plt.ylabel('mean squared error')
+        plt.savefig('fitnesses.eps', format='eps')
+        plt.close()
+
+    @staticmethod
     def _create_individual_distribution(random_state, weights,
                                         ensemble_size):
         dist = Gaussian()
@@ -346,7 +361,7 @@ class EnsembleKalmanFilter(Optimizer):
             param1 is accessible using `traj.param1`
         """
         traj.f_add_result('final_individual', self.best_individual)
-
+        self.plot_fitnesses(self.fitness_all)
         logger.info(
             "The last individual {} was with fitness {}".format(
                 self.best_individual, self.best_fitness))
