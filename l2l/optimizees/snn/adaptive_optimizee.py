@@ -546,12 +546,12 @@ class AdaptiveOptimizee(Optimizee):
         weights_iio = traj.individual.weights_iio
         self.replace_weights(weights_eeo,
                              self.parameters.path, typ='eeo')
-        # self.replace_weights(weights_eio,
-        #                      self.parameters.path, typ='eio')
-        # self.replace_weights(weights_ieo,
-        #                      self.parameters.path, typ='ieo')
-        # self.replace_weights(weights_iio,
-        #                      self.parameters.path, typ='iio')
+        self.replace_weights(weights_eio,
+                             self.parameters.path, typ='eio')
+        self.replace_weights(weights_ieo,
+                             self.parameters.path, typ='ieo')
+        self.replace_weights(weights_iio,
+                             self.parameters.path, typ='iio')
         # Warm up simulation
         print("Starting simulation")
         if self.gen_idx < 1:
@@ -598,7 +598,7 @@ class AdaptiveOptimizee(Optimizee):
             # one hot encoding
             label = np.eye(self.n_output_clusters)[target]
             pred = np.eye(self.n_output_clusters)[argmax]
-            fitness = ((label - pred) ** 2).sum()
+            fitness = self._calculate_fitness(label, pred, "MSE")
             fitnesses.append(fitness)
             print('Fitness {} for target {}, softmax {}, argmax {}'.format(
                 fitness, target, softm, argmax))
@@ -607,6 +607,11 @@ class AdaptiveOptimizee(Optimizee):
         print('Fitness values {}, mean {}'.format(
             fitnesses, np.mean(fitnesses)))
         return dict(fitness=np.mean(fitnesses), model_out=model_outs)
+
+    def _calculate_fitness(label, prediction, costf='MSE'):
+        if constf == 'MSE':
+            return ((label - prediction) ** 2).mean()
+            
 
     @staticmethod
     def replace_weights(weights, path='.', typ='e'):
