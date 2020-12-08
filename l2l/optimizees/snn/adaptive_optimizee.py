@@ -609,9 +609,8 @@ class AdaptiveOptimizee(Optimizee):
         return dict(fitness=np.mean(fitnesses), model_out=model_outs)
 
     def _calculate_fitness(label, prediction, costf='MSE'):
-        if constf == 'MSE':
+        if costf == 'MSE':
             return ((label - prediction) ** 2).mean()
-            
 
     @staticmethod
     def replace_weights(weights, path='.', typ='e'):
@@ -633,13 +632,13 @@ class AdaptiveOptimizee(Optimizee):
 
     @staticmethod
     def save_connections(conn, path='.', typ='e'):
-        status=nest.GetStatus(conn)
-        d=OrderedDict({'source': [], 'target': []})
+        status = nest.GetStatus(conn)
+        d = OrderedDict({'source': [], 'target': []})
         for elem in status:
             d['source'].append(elem.get('source'))
             d['target'].append(elem.get('target'))
             # d['weight'].append(elem.get('weight'))
-        df=pd.DataFrame(d)
+        df = pd.DataFrame(d)
         df.to_pickle(
             os.path.join(path,
                          '{}_connections.pkl'.format(typ)))
@@ -649,14 +648,14 @@ class AdaptiveOptimizee(Optimizee):
 
     def checkpoint(self, ids):
         # Input connections
-        connections=nest.GetStatus(nest.GetConnections(self.nodes_in))
-        f=open('conn_input_{}.bin'.format(ids), "wb")
+        connections = nest.GetStatus(nest.GetConnections(self.nodes_in))
+        f = open('conn_input_{}.bin'.format(ids), "wb")
         pickle.dump(connections, f, pickle.HIGHEST_PROTOCOL)
         f.close()
 
         # Bulk connections
-        connections=nest.GetStatus(nest.GetConnections(self.nodes_e))
-        f=open('conn_bulke_{}.bin'.format(ids), "wb")
+        connections = nest.GetStatus(nest.GetConnections(self.nodes_e))
+        f = open('conn_bulke_{}.bin'.format(ids), "wb")
         pickle.dump(connections, f, pickle.HIGHEST_PROTOCOL)
         f.close()
         connections=nest.GetStatus(nest.GetConnections(self.nodes_i))
