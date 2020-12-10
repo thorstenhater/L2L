@@ -25,9 +25,9 @@ class AdaptiveOptimizee(Optimizee):
         super().__init__(traj)
         self.parameters = parameters
         fp = pathlib.Path(__file__).parent.absolute()
-        print(os.path.join(fp, 'config.json'))
+        print(os.path.join(str(fp), 'config.json'))
         with open(
-                os.path.join(fp, 'config.json')) as jsonfile:
+                os.path.join(str(fp), 'config.json')) as jsonfile:
             self.config = json.load(jsonfile)
         seed = np.uint32(self.config['seed'])
         self.random_state = np.random.RandomState(seed=seed)
@@ -245,7 +245,7 @@ class AdaptiveOptimizee(Optimizee):
             n_img = self.n_input_neurons
             rates, starts, ends = spike_generator.greyvalue_sequential(
                 self.target_px[n_img], start_time=0, end_time=783, min_rate=0,
-                max_rate=10)
+                max_rate=200) #10
             self.rates = rates
             self.pixel_rate_generators = nest.Create(
                 "poisson_generator", len(rates))
@@ -290,12 +290,17 @@ class AdaptiveOptimizee(Optimizee):
                       'weight': {"distribution": "normal",
                                  "mu": self.psc_i,
                                  "sigma": 100.}}
+        syn_dict_input = {"model": "random_synapse",
+                      'weight': {"distribution": "normal",
+                                 "mu": self.psc_e*15,
+                                 "sigma": 100.}}
         nest.Connect(self.pixel_rate_generators, self.nodes_in, "one_to_one",
-                     syn_spec=syn_dict_e)
+                     syn_spec=syn_dict_input)
         # connect input to bulk
-        nest.Connect(self.nodes_in, self.nodes_e, "all_to_all",
+        conn_dict = {'rule': 'fixed_indegree', 'indegree': self.n_bulk_ex_neurons}
+        nest.Connect(self.nodes_in, self.nodes_e, conn_spec=conn_dict, #all_to_all
                      syn_spec=syn_dict_e)
-        nest.Connect(self.nodes_in, self.nodes_i, "all_to_all",
+        nest.Connect(self.nodes_in, self.nodes_i, conn_spec=conn_dict, #all_to_all
                      syn_spec=syn_dict_i)
 
     def connect_bellec_input(self):
@@ -368,27 +373,27 @@ class AdaptiveOptimizee(Optimizee):
         # Bulk to out
         conn_dict_e = {'rule': 'fixed_indegree',
                        # 0.3 * self.number_out_exc_neurons
-                       'indegree': int(0.15 * self.n_bulk_ex_neurons)}
+                       'indegree': int(0.5 * self.n_bulk_ex_neurons)}
         conn_dict_i = {'rule': 'fixed_indegree',
                        # 0.2 * self.number_out_exc_neurons
-                       'indegree': int(0.1 * self.n_bulk_in_neurons)}
+                       'indegree': int(0.5 * self.n_bulk_ex_neurons)}
         syn_dict_e = {"model": "random_synapse",
                       'weight': {"distribution": "normal",
                                  "mu": self.psc_e,
-                                 "sigma": 100.}}
+                                 "sigma": 10.}}
         syn_dict_i = {"model": "random_synapse_i",
                       'weight': {"distribution": "normal",
                                  "mu": self.psc_i,
-                                 "sigma": 100.}}
+                                 "sigma": 10.}}
         for j in range(self.n_output_clusters):
             nest.Connect(self.nodes_e, self.nodes_out_e[j], conn_dict_e,
                          syn_spec=syn_dict_e)
             nest.Connect(self.nodes_e, self.nodes_out_i[j], conn_dict_i,
-                         syn_spec=syn_dict_i)
+                         syn_spec=syn_dict_e)
             nest.Connect(self.nodes_i, self.nodes_out_e[j], conn_dict_i,
                          syn_spec=syn_dict_i)
             nest.Connect(self.nodes_i, self.nodes_out_i[j], conn_dict_e,
-                         syn_spec=syn_dict_e)
+                         syn_spec=syn_dict_i)
 
     def connect_external_input(self):
         nest.SetStatus(self.noise, {"rate": self.bg_rate})
@@ -431,11 +436,17 @@ class AdaptiveOptimizee(Optimizee):
                     nest.GetStatus([self.out_detector_i[i]], "n_events")[
                         0] * 1000.0 / (
                         self.record_interval * self.n_neurons_out_i))
-        spikes = nest.GetStatus(self.bulks_detector_ex, keys="events")[0]
-        visualize.spike_plot(spikes, "Bulk spikes",
+        spikes = nest.GetStatus(self.bulks_detector_in, keys="events")[0]
+        visualize.spike_plot(spikes, "Bulk spikes in",
                              idx=indx, gen_idx=gen_idx, save=save)
         spikes = nest.GetStatus(self.bulks_detector_ex, keys="events")[0]
         visualize.spike_plot(spikes, "Bulk spikes",
+                             idx=indx, gen_idx=gen_idx, save=save)
+        spikes_out_e = nest.GetStatus(self.out_detector_e, keys="events")[0]
+        visualize.spike_plot(spikes_out_e, "Out spikes",
+                             idx=indx, gen_idx=gen_idx, save=save)
+        spikes_out_i = nest.GetStatus(self.out_detector_i, keys="events")[0]
+        visualize.spike_plot(spikes_out_i, "Out spikes in",
                              idx=indx, gen_idx=gen_idx, save=save)
 
     def record_ca(self, record_out=False):
@@ -592,7 +603,7 @@ class AdaptiveOptimizee(Optimizee):
             print("Simulation loop {} finished successfully".format(idx))
             print('Mean out e ', self.mean_ca_out_e)
             print('Mean e ', self.mean_ca_e)
-            softm = softmax([self.mean_ca_out_e[j][-1] for j in
+            softm = softmax([np.mean(self.mean_ca_out_e[j]) for j in
                              range(self.n_output_clusters)])
             argmax = np.argmax(softm)
             model_outs.append(softm)
@@ -702,8 +713,8 @@ def main():
     # Optimizee params
     optimizee_parameters = AdaptiveOptimizeeParameters(
         path=paths.root_dir_path,
-        record_spiking_firingrate=False,
-        save_plot=False)
+        record_spiking_firingrate=True,
+        save_plot=True)
     # Inner-loop simulator
     optimizee = AdaptiveOptimizee(fake_traj, optimizee_parameters)
     print(optimizee.config)

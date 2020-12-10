@@ -13,7 +13,7 @@ from l2l import dict_to_list
 from l2l.optimizers.optimizer import Optimizer
 from l2l.optimizers.crossentropy.distribution import Gaussian
 
-import l2l.optimizers.kalmanfilter.data as data
+from l2l.optimizers.kalmanfilter import data
 
 logger = logging.getLogger("optimizers.kalmanfilter")
 
