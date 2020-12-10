@@ -610,7 +610,8 @@ class AdaptiveOptimizee(Optimizee):
             # one hot encoding
             label = np.eye(self.n_output_clusters)[target]
             pred = np.eye(self.n_output_clusters)[argmax]
-            fitness = self._calculate_fitness(label, pred, "MSE")
+            # 1 is worst 0 is best, that's why 1 - mean
+            fitness = 1 - self._calculate_fitness(label, pred, "MSE")
             fitnesses.append(fitness)
             print('Fitness {} for target {}, softmax {}, argmax {}'.format(
                 fitness, target, softm, argmax))
@@ -620,7 +621,8 @@ class AdaptiveOptimizee(Optimizee):
             fitnesses, np.mean(fitnesses)))
         return dict(fitness=np.mean(fitnesses), model_out=model_outs)
 
-    def _calculate_fitness(self, label, prediction, costf='MSE'):
+    @staticmethod
+    def _calculate_fitness(label, prediction, costf='MSE'):
         if costf == 'MSE':
             return ((label - prediction) ** 2).mean()
 
@@ -669,18 +671,18 @@ class AdaptiveOptimizee(Optimizee):
         f = open('conn_bulke_{}.bin'.format(ids), "wb")
         pickle.dump(connections, f, pickle.HIGHEST_PROTOCOL)
         f.close()
-        connections=nest.GetStatus(nest.GetConnections(self.nodes_i))
-        f=open('conn_bulki_{}.bin'.format(ids), "wb")
+        connections = nest.GetStatus(nest.GetConnections(self.nodes_i))
+        f = open('conn_bulki_{}.bin'.format(ids), "wb")
         pickle.dump(connections, f, pickle.HIGHEST_PROTOCOL)
         f.close()
 
         # # Out connections
-        connections=nest.GetStatus(nest.GetConnections(self.nodes_out_e[0]))
-        f=open('conn_oute_0_{}.bin'.format(ids), "wb")
+        connections = nest.GetStatus(nest.GetConnections(self.nodes_out_e[0]))
+        f = open('conn_oute_0_{}.bin'.format(ids), "wb")
         pickle.dump(connections, f, pickle.HIGHEST_PROTOCOL)
         f.close()
-        connections=nest.GetStatus(nest.GetConnections(self.nodes_out_i[0]))
-        f=open('conn_outi_0_{}.bin'.format(ids), "wb")
+        connections = nest.GetStatus(nest.GetConnections(self.nodes_out_i[0]))
+        f = open('conn_outi_0_{}.bin'.format(ids), "wb")
         pickle.dump(connections, f, pickle.HIGHEST_PROTOCOL)
         f.close()
 

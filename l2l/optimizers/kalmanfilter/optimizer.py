@@ -108,8 +108,7 @@ class EnsembleKalmanFilter(Optimizer):
                                 current_eval_pop]
 
         self.eval_pop = current_eval_pop
-        self.best_fitness = 0.
-        self.best_individual = None
+        self.best_individual = []
         self.current_fitness = np.inf
         self.fitness_all = []
 
@@ -178,7 +177,8 @@ class EnsembleKalmanFilter(Optimizer):
             for i in range(ensemble_size)]
         fitness = [traj.current_results[i][1]['fitness'] for i in
                    range(ensemble_size)]
-        self.current_fitness = np.min(fitness)
+        self.current_fitness = np.max(fitness)
+
 
         # TODO make sampling optional
         # weights = self._sample_from_individual(weights, fitness, bins=10000)
@@ -191,13 +191,15 @@ class EnsembleKalmanFilter(Optimizer):
         model_outs = model_outs.reshape((ensemble_size,
                                          len(self.target_label),
                                          traj.n_batches))
-        current_res = np.sort([traj.current_results[i][1]['fitness'] for i in
-                               range(ensemble_size)])
+        best_indviduals = np.argsort(fitness)[::-1]
+        current_res = np.sort(fitness)[::-1]
         logger.info('Sorted Fitness {}'.format(current_res))
         self.fitness_all.append(current_res)
         logger.info(
             'Best fitness {} in generation {}'.format(self.current_fitness,
                                                       self.g))
+        logger.info('Best 10 individuals index {}'.format(best_indviduals[:10]))
+        self.best_individual.append((best_indviduals[0], current_res[0]))
 
         enkf = EnKF(maxit=traj.maxit,
                     online=traj.online,
@@ -209,7 +211,7 @@ class EnsembleKalmanFilter(Optimizer):
                  gamma=gamma)
         # These are all the updated weights for each ensemble
         results = enkf.ensemble.cpu().numpy()  # scaler.inverse_transform(enkf.ensemble)
-        self.plot_distribution(weights=results, gen=traj.generation, mean=True)
+        self.plot_distribution(weights=results, gen=self.g, mean=True)
 
         generation_name = 'generation_{}'.format(traj.generation)
         traj.results.generation_params.f_add_result_group(generation_name)
@@ -363,6 +365,6 @@ class EnsembleKalmanFilter(Optimizer):
         traj.f_add_result('final_individual', self.best_individual)
         self.plot_fitnesses(self.fitness_all)
         logger.info(
-            "The last individual {} was with fitness {}".format(
-                self.best_individual, self.best_fitness))
+            "The best individuals with fitness {}".format(
+                self.best_individual))
         logger.info("-- End of (successful) EnKF optimization --")
