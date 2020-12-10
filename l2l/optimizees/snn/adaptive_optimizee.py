@@ -3,6 +3,7 @@ from itertools import permutations, product
 from l2l.optimizees.optimizee import Optimizee
 from l2l.optimizees.snn import spike_generator, visualize
 from scipy.special import softmax
+from l2l.optimizers.kalmanfilter.data import fetch
 
 import json
 import glob
@@ -608,7 +609,7 @@ class AdaptiveOptimizee(Optimizee):
             fitnesses, np.mean(fitnesses)))
         return dict(fitness=np.mean(fitnesses), model_out=model_outs)
 
-    def _calculate_fitness(label, prediction, costf='MSE'):
+    def _calculate_fitness(self, label, prediction, costf='MSE'):
         if costf == 'MSE':
             return ((label - prediction) ** 2).mean()
 
@@ -623,7 +624,6 @@ class AdaptiveOptimizee(Optimizee):
         # weights = conns['weight'].values
         print('now replacing connection weights')
         for (s, t, w) in zip(sources, targets, weights):
-            print("Source {},Target {}, Weight {}".format(s, t, float(int(w))))
             syn_spec = {'weight': float(int(w)),
                         'model': 'static_synapse'}
             nest.Connect(pre=tuple([s]), post=tuple([t]),
@@ -684,3 +684,64 @@ def remove_files(extensions):
                 os.remove(f)
         except OSError as ose:
             print(ose)
+
+
+def main():
+    from l2l import DummyTrajectory
+    from l2l.paths import Paths
+    from l2l import sdict
+
+    root_dir_path = "../../../results"
+    if not os.path.exists(root_dir_path):
+        os.mkdir(root_dir_path)
+    paths = Paths('', {}, root_dir_path=root_dir_path)
+
+    fake_traj = DummyTrajectory()
+    fake_traj.individual.generation = 0
+    fake_traj.individual.ind_idx = 0
+    # Optimizee params
+    optimizee_parameters = AdaptiveOptimizeeParameters(
+        path=paths.root_dir_path,
+        record_spiking_firingrate=False,
+        save_plot=False)
+    # Inner-loop simulator
+    optimizee = AdaptiveOptimizee(fake_traj, optimizee_parameters)
+    print(optimizee.config)
+    size_eeo, size_eio, size_ieo, size_iio = optimizee.connect_network()
+    params = optimizee.create_individual(size_eeo, size_eio, size_ieo, size_iio)
+    grouped_params_dict = {key: val for key, val in params.items()}
+    grouped_params_dict['generation'] = 0
+    grouped_params_dict['ind_idx'] = 0
+
+    # MNIST DATA HANDLING
+    target_label = ['0', '1']
+    other_label = ['2', '3', '4', '5', '6', '7', '8', '9']
+
+    # get the targets
+    train_set, train_labels, test_set, test_labels = \
+        fetch(path='./mnist784_dat/',
+                   labels=target_label)
+    other_set, other_labels, test_set_other, test_labels_other = fetch(
+        path='./mnist784_dat/', labels=other_label)
+
+    if train_labels:
+        n_batch = 2
+        optimizee_labels, random_ids = randomize_labels(
+            train_labels, size=n_batch)
+    else:
+        raise AttributeError('Train Labels are not set, please check.')
+
+    grouped_params_dict["targets"] = optimizee_labels
+    grouped_params_dict["train_set"] = [train_set[r] for r in random_ids]
+    fake_traj.individual = sdict(grouped_params_dict)
+    testing_error = optimizee.simulate(fake_traj)
+    print(testing_error)
+
+
+def randomize_labels(labels, size):
+    rnd = np.random.randint(low=0, high=len(labels), size=size)
+    return [int(labels[i]) for i in rnd], rnd
+
+
+if __name__ == "__main__":
+    main()
