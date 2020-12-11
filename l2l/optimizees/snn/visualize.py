@@ -23,7 +23,7 @@ def plot_image(image, random_id, iteration, path, save=True):
         plt.close()
 
 
-def spike_plot(spikes, title, gen_idx, idx='', show=False, save=True):
+def spike_plot(spikes, title, gen_idx, path, idx='', show=False, save=True):
     """ Plots spiking activity in a dot plot """
     events = spikes["senders"]
     times = spikes["times"]
@@ -36,8 +36,8 @@ def spike_plot(spikes, title, gen_idx, idx='', show=False, save=True):
     if show:
         plt.show()
     elif save:
-        plt.savefig('sp_{}_{}_{}.eps'.format(
-            title, gen_idx, idx), format='eps')
+        plt.savefig(os.path.join(path, '{}_{}_{}.eps'.format(
+            gen_idx, idx, title.replace(' ', '-'))), format='eps')
     plt.close()
 
 

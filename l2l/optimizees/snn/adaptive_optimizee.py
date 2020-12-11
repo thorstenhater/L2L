@@ -188,27 +188,27 @@ class AdaptiveOptimizee(Optimizee):
             self.bulks_detector_ex = nest.Create("spike_detector",
                                                  params={"withgid": True,
                                                          "withtime": True,
-                                                         "to_file": True,
+                                                         "to_file": False,
                                                          "label": "bulk_ex",
                                                          "file_extension": "spikes"})
             self.bulks_detector_in = nest.Create("spike_detector",
                                                  params={"withgid": True,
                                                          "withtime": True,
-                                                         "to_file": True,
+                                                         "to_file": False,
                                                          "label": "bulk_in",
                                                          "file_extension": "spikes"})
             self.out_detector_e = nest.Create("spike_detector",
                                               self.n_output_clusters,
                                               params={"withgid": True,
                                                       "withtime": True,
-                                                      "to_file": True,
+                                                      "to_file": False,
                                                       "label": "out_e",
                                                       "file_extension": "spikes"})
             self.out_detector_i = nest.Create("spike_detector",
                                               self.n_output_clusters,
                                               params={"withgid": True,
                                                       "withtime": True,
-                                                      "to_file": True,
+                                                      "to_file": False,
                                                       "label": "out_i",
                                                       "file_extension": "spikes"})
 
@@ -416,7 +416,7 @@ class AdaptiveOptimizee(Optimizee):
             nest.SetStatus([self.out_detector_e[i]], "n_events", 0)
             nest.SetStatus([self.out_detector_i[i]], "n_events", 0)
 
-    def record_fr(self, indx, gen_idx, record_out=False, save=True):
+    def record_fr(self, indx, gen_idx, path, record_out=False, save=True):
         """ Records firing rates """
         n_recorded_bulk_ex = self.n_bulk_ex_neurons
         n_recorded_bulk_in = self.n_bulk_in_neurons
@@ -436,18 +436,19 @@ class AdaptiveOptimizee(Optimizee):
                     nest.GetStatus([self.out_detector_i[i]], "n_events")[
                         0] * 1000.0 / (
                         self.record_interval * self.n_neurons_out_i))
-        spikes = nest.GetStatus(self.bulks_detector_in, keys="events")[0]
-        visualize.spike_plot(spikes, "Bulk spikes in",
-                             idx=indx, gen_idx=gen_idx, save=save)
-        spikes = nest.GetStatus(self.bulks_detector_ex, keys="events")[0]
-        visualize.spike_plot(spikes, "Bulk spikes",
-                             idx=indx, gen_idx=gen_idx, save=save)
-        spikes_out_e = nest.GetStatus(self.out_detector_e, keys="events")[0]
-        visualize.spike_plot(spikes_out_e, "Out spikes",
-                             idx=indx, gen_idx=gen_idx, save=save)
-        spikes_out_i = nest.GetStatus(self.out_detector_i, keys="events")[0]
-        visualize.spike_plot(spikes_out_i, "Out spikes in",
-                             idx=indx, gen_idx=gen_idx, save=save)
+        if gen_idx % 10 == 0:
+            spikes = nest.GetStatus(self.bulks_detector_in, keys="events")[0]
+            visualize.spike_plot(spikes, "Bulk spikes in", idx=indx,
+                                 gen_idx=gen_idx, save=save, path=path)
+            spikes = nest.GetStatus(self.bulks_detector_ex, keys="events")[0]
+            visualize.spike_plot(spikes, "Bulk spikes ex",
+                                 idx=indx, gen_idx=gen_idx, save=save, path=path)
+            spikes_out_e = nest.GetStatus(self.out_detector_e, keys="events")[0]
+            visualize.spike_plot(spikes_out_e, "Out spikes ex", idx=indx,
+                                 gen_idx=gen_idx, save=save, path=path)
+            spikes_out_i = nest.GetStatus(self.out_detector_i, keys="events")[0]
+            visualize.spike_plot(spikes_out_i, "Out spikes in", idx=indx,
+                                 gen_idx=gen_idx, save=save, path=path)
 
     def record_ca(self, record_out=False):
         ca_e = nest.GetStatus(self.nodes_e, 'Ca'),  # Calcium concentration
@@ -486,7 +487,7 @@ class AdaptiveOptimizee(Optimizee):
         path = self.parameters.path
         save = self.parameters.save_plot
         # Save image for reference
-        if save:
+        if self.gen_idx % 10 == 0 and save:
             visualize.plot_image(image=train_data, random_id=target,
                                  iteration=iteration, path=path, save=save)
         if self.input_type == 'greyvalue':
@@ -593,9 +594,10 @@ class AdaptiveOptimizee(Optimizee):
                 if j % 20 == 0:
                     print("Progress: " + str(j / 2) + "%")
                 if self.parameters.record_spiking_firingrate:
-                    self.record_fr(indx=j, gen_idx=self.gen_idx,
+                    self.record_fr(indx=self.ind_idx, gen_idx=self.gen_idx,
                                    save=self.parameters.save_plot,
-                                   record_out=True)
+                                   record_out=True,
+                                   path=self.parameters.path)
                     self.clear_spiking_events()
                 else:
                     self.record_ca(record_out=True)
