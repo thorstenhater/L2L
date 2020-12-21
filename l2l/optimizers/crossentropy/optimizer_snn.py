@@ -5,7 +5,7 @@ import numpy as np
 from collections import namedtuple
 from l2l import dict_to_list, list_to_dict
 from l2l.optimizers.optimizer import Optimizer
-import l2l.optimizers.kalmanfilter.data as data
+from l2l.optimizers.kalmanfilter import data
 
 logger = logging.getLogger("optimizers.crossentropy")
 
