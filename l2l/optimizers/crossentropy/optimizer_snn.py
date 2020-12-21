@@ -1,8 +1,8 @@
 import logging
-from collections import namedtuple
-
+import matplotlib.pyplot as plt
 import numpy as np
 
+from collections import namedtuple
 from l2l import dict_to_list, list_to_dict
 from l2l.optimizers.optimizer import Optimizer
 import l2l.optimizers.kalmanfilter.data as data
@@ -137,6 +137,7 @@ class CrossEntropyOptimizerSNN(Optimizer):
         self.best_fitness_in_run = -np.inf
         self.best_individual = None
         self.distribution_results = None
+        self.all_fitnesses = []
 
         # The first iteration does not pick the values out of the Gaussian
         # distribution. It picks randomly (or at-least as randomly as
@@ -303,6 +304,7 @@ class CrossEntropyOptimizerSNN(Optimizer):
             'average_fitness_in_run': np.mean(sorted_fitness),
             'pop_size': self.pop_size
         }
+        self.all_fitnesses.append(sorted_fitness)
 
         generation_name = 'generation_{}'.format(self.g)
         traj.results.generation_params.f_add_result_group(generation_name)
@@ -367,6 +369,21 @@ class CrossEntropyOptimizerSNN(Optimizer):
             self.T *= temp_decay
             self._expand_trajectory(traj)
 
+    @staticmethod
+    def plot_fitnesses(fitnesses):
+        std = np.std(fitnesses, axis=1)
+        mu = np.mean(fitnesses, axis=1)
+        lower_bound = mu - std
+        upper_bound = mu + std
+        plt.plot(mu, 'o-')
+        plt.fill_between(range(len(mu)), lower_bound, upper_bound, alpha=0.7,
+                         color='green')
+        # plt.plot(np.ones_like(f_) * i, np.ravel(f), '.')
+        plt.xlabel('Generations')
+        plt.ylabel('mean squared error')
+        plt.savefig('fitnesses_ce.eps', format='eps')
+        plt.close()
+
     def end(self, traj):
         """
         See :meth:`~l2l.optimizers.optimizer.Optimizer.end`
@@ -376,6 +393,7 @@ class CrossEntropyOptimizerSNN(Optimizer):
         traj.f_add_result('final_individual', best_last_indiv_dict)
         traj.f_add_result('final_fitness', self.best_fitness_in_run)
         traj.f_add_result('n_iteration', self.g + 1)
+        self.plot_fitnesses(self.all_fitnesses)
 
         # ------------ Finished all runs and print result --------------- #
         logger.info("-- End of (successful) CE optimization --")

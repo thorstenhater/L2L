@@ -15,7 +15,7 @@ import pathlib
 import pickle
 
 OptimizeeCEParameters = namedtuple(
-    'AdaptiveOptimizeeParameters', ['path',
+    'OptimizeeCEParameters', ['path',
                                     'record_spiking_firingrate',
                                     'save_plot'])
 
