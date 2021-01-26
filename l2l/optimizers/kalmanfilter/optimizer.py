@@ -111,6 +111,8 @@ class EnsembleKalmanFilter(Optimizer):
         self.best_individual = []
         self.current_fitness = np.inf
         self.fitness_all = []
+        # weights to save pro certain generation for further analysis
+        self.weights_to_save = []
 
         # self.targets = parameters.observations
 
@@ -212,6 +214,8 @@ class EnsembleKalmanFilter(Optimizer):
         # These are all the updated weights for each ensemble
         results = enkf.ensemble.cpu().numpy()  # scaler.inverse_transform(enkf.ensemble)
         self.plot_distribution(weights=results, gen=self.g, mean=True)
+        if self.g % 1 == 0:
+            self.weights_to_save.append(results)
 
         generation_name = 'generation_{}'.format(traj.generation)
         traj.results.generation_params.f_add_result_group(generation_name)
@@ -367,4 +371,6 @@ class EnsembleKalmanFilter(Optimizer):
         logger.info(
             "The best individuals with fitness {}".format(
                 self.best_individual))
+        np.savez_compressed(os.path.join(traj.parameters.path, 'weights.npz'),
+                            weights=self.weights_to_save)
         logger.info("-- End of (successful) EnKF optimization --")

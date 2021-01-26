@@ -612,7 +612,7 @@ class AdaptiveOptimizee(Optimizee):
             # one hot encoding
             label = np.eye(self.n_output_clusters)[target]
             pred = np.eye(self.n_output_clusters)[argmax]
-            # 1 is worst 0 is best, that's why 1 - mean
+            # MSE of 1 is worst 0 is best, that's why 1 - mean
             fitness = 1 - self._calculate_fitness(label, pred, "MSE")
             fitnesses.append(fitness)
             print('Fitness {} for target {}, softmax {}, argmax {}'.format(
