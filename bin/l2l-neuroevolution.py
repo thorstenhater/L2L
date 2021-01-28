@@ -3,19 +3,19 @@ from datetime import datetime
 from l2l.utils.environment import Environment
 from l2l.utils.experiment import Experiment
 
-from l2l.optimizees.neuroevolution import NeuroEvolutionOptimizee, NeuroEvolutionOptimizee
+from l2l.optimizees.neuroevolution import NeuroEvolutionOptimizee, NeuroEvolutionOptimizeeParameters
 from l2l.optimizers.evolutionstrategies import EvolutionStrategiesParameters, EvolutionStrategiesOptimizer
 
 
 def run_experiment():
     experiment = Experiment(
-        root_dir_path='/p/scratch/structuretofunction/l2l_alper/')
+        root_dir_path='../results')
     jube_params = {"exec": "srun -n 1 -c 8 --exclusive python"}
     traj, _ = experiment.prepare_experiment(
         jube_parameter=jube_params, name="NeuroEvo_ES_{}".format(datetime.now().strftime("%Y-%m-%d-%H_%M_%S")))
 
     # Optimizee params
-    optimizee_parameters = NeuroEvolutionOptimizee(
+    optimizee_parameters = NeuroEvolutionOptimizeeParameters(
         path=experiment.root_dir_path)
     optimizee = NeuroEvolutionOptimizee(traj, optimizee_parameters)
 
@@ -25,8 +25,8 @@ def run_experiment():
         noise_std=0.1,
         mirrored_sampling_enabled=True,
         fitness_shaping_enabled=True,
-        pop_size=20,
-        n_iteration=2000,
+        pop_size=8,
+        n_iteration=2,
         stop_criterion=np.Inf,
         seed=optimizer_seed)
 

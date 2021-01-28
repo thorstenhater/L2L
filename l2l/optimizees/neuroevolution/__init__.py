@@ -1,3 +1,3 @@
-from .optimizee import NeuroEvolutionOptimizee, NeuroEvlutionOptimizeeParameters
+from .optimizee import NeuroEvolutionOptimizee, NeuroEvolutionOptimizeeParameters
 
-__all__ = ['NeuroEvolutionOptimizee', 'NeuroEvlutionOptimizeeParameters']
+__all__ = ['NeuroEvolutionOptimizee', 'NeuroEvolutionOptimizeeParameters']
