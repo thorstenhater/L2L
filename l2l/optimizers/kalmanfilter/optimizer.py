@@ -258,9 +258,92 @@ class EnsembleKalmanFilter(Optimizer):
             weights = scaler.fit_transform(weights)
         return weights, scaler
 
+    def sample_from_individuals(self, individuals, fitness, bins='auto',
+                                best_n=0.25, worst_n=0.25,
+                                sampling_method='interpolate',
+                                pick_method='random',
+                                **kwargs):
+        """
+        Samples from the best `n` individuals via different interpolation
+        methods.
+
+        :param individuals: array_like
+            Input data, the individuals
+        :param fitness: array_like
+            Fitness array
+        :param bins: int
+            Number of bins needed for the histogram which will be used in the
+            sampling step. Default: 'auto'
+        :param best_n: float
+            Percentage of best individuals to sample from
+        :param worst_n:
+            Percentage of worst individuals to replaced by sampled individuals
+        :param sampling_method: str
+            'interpolate' or 'rv_histogram', respective function from `scipy`
+            will be used. Default: 'interpolate'
+        :param pick_method: str
+            Either picks the best individual randomly 'random' or it picks the
+            iterates through the best individuals and picks with a certain
+            probability `pick_probability` the first best individual
+            `best_first`. In the latter case must be used with the key word
+            argument `pick_probability`. Default: 'random'
+        :param kwargs:
+            'pick_probability': float
+                Probability of picking the first best individual. Must be used
+                when `pick_method` is set to `pick_probability`.
+        :return: array_like
+            New array of sampled individuals.
+        """
+        # check if the sizes are different otherwise skip
+        if len(set(
+                [len(individuals[i]) for i in range(len(individuals))])) == 1:
+            return individuals
+        # best fitness should be here ~ 0 (which means correct choice)
+        # sort them from best to worst via the index of fitness
+        # get indices
+        indices = np.argsort(fitness)
+        sorted_individuals = individuals[indices]
+        # get best n individuals from the front
+        best_individuals = sorted_individuals[:int(len(individuals) * best_n)]
+        # get worst n individuals from the back
+        worst_individuals = sorted_individuals[
+                            len(individuals) - int(len(individuals) * worst_n):]
+        hists = [np.histogram(bi, bins) for bi in best_individuals]
+        hists = np.asarray(hists)
+        interpolated = self._sample(hists, sampling_method)
+        interpolated = np.asarray(interpolated)
+        for wi in range(len(worst_individuals)):
+            if pick_method == 'random':
+                # pick a random number from the histograms and sample from there
+                rnd_indx = np.random.randint(len(hists))
+                hist_dist = interpolated[rnd_indx]
+                # TODO add noise
+                worst_individuals[wi] = hist_dist
+            elif pick_method == 'best_first':
+                for ipol in range(len(interpolated)):
+                    pp = kwargs['pick_probability']
+                    rnd_pp = np.random.rand()
+                    if pp >= rnd_pp:
+                        # TODO add Noise
+                        worst_individuals[wi] = interpolated[ipol]
+        sorted_individuals[sorted_individuals - len(worst_individuals):] = worst_individuals
+        return sorted_individuals
+
     @staticmethod
-    def _sample_from_individual(individuals, fitness, bins='auto',
-                                method='interpolate'):
+    def _sample(histograms, method='interpolate'):
+        if method == 'interpolate':
+            interpolated = [scipy.interpolate.interp1d(h[1][:-1], h[0]) for h in
+                            histograms]
+        elif method == 'rv_histogram':
+            interpolated = [scipy.stats.rv_histogram(h) for h in histograms]
+        else:
+            raise KeyError('Sampling method {} not known'.format(method))
+        interpolated = np.asarray(interpolated)
+        return interpolated
+
+    @staticmethod
+    def adjust_similar_lengths(individuals, fitness, bins='auto',
+                               method='interpolate'):
         """
         The lengths of the individuals may differ. To fill the individuals to
         the same length sample values from the distribution of the individual
