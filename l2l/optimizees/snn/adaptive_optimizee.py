@@ -29,9 +29,6 @@ class AdaptiveOptimizee(Optimizee):
         with open(
                 os.path.join(str(fp), 'config.json')) as jsonfile:
             self.config = json.load(jsonfile)
-        seed = np.uint32(self.config['seed'])
-        self.random_state = np.random.RandomState(seed=seed)
-        nest.SetKernelStatus({"rng_seeds": [seed]})
         self.t_sim = self.config['t_sim']
         self.input_type = self.config['input_type']
         # Resolution, simulation steps in [ms]
@@ -40,6 +37,9 @@ class AdaptiveOptimizee(Optimizee):
         # Indices per generation and individual
         self.gen_idx = traj.individual.generation
         self.ind_idx = traj.individual.ind_idx
+        seed = np.uint32(self.config['seed']) * self.ind_idx
+        self.random_state = np.random.RandomState(seed=seed)
+        nest.SetKernelStatus({"rng_seeds": [seed]})
 
         # Number of neurons per layer
         self.n_input_neurons = self.config['n_input']
