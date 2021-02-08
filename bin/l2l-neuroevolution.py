@@ -1,42 +1,36 @@
-import numpy as np
 from datetime import datetime
-from l2l.utils.environment import Environment
 from l2l.utils.experiment import Experiment
 
 from l2l.optimizees.neuroevolution import NeuroEvolutionOptimizee, NeuroEvolutionOptimizeeParameters
-from l2l.optimizers.evolutionstrategies import EvolutionStrategiesParameters, EvolutionStrategiesOptimizer
+from l2l.optimizers.evolution import GeneticAlgorithmParameters, GeneticAlgorithmOptimizer
 
 
 def run_experiment():
     experiment = Experiment(
         root_dir_path='../results')
-    jube_params = {"exec": "srun -n 1 -c 8 --exclusive python"}
+    jube_params = {"exec": "python"}
     traj, _ = experiment.prepare_experiment(
         jube_parameter=jube_params, name="NeuroEvo_ES_{}".format(datetime.now().strftime("%Y-%m-%d-%H_%M_%S")))
 
     # Optimizee params
     optimizee_parameters = NeuroEvolutionOptimizeeParameters(
-        path=experiment.root_dir_path)
+        path=experiment.root_dir_path, seed=1)
     optimizee = NeuroEvolutionOptimizee(traj, optimizee_parameters)
 
     optimizer_seed = 1234
-    optimizer_parameters = EvolutionStrategiesParameters(
-        learning_rate=0.1,
-        noise_std=0.1,
-        mirrored_sampling_enabled=True,
-        fitness_shaping_enabled=True,
-        pop_size=8,
-        n_iteration=2,
-        stop_criterion=np.Inf,
-        seed=optimizer_seed)
+    optimizer_parameters = GeneticAlgorithmParameters(seed=0, popsize=2,
+                                                      CXPB=0.7,
+                                                      MUTPB=0.5,
+                                                      NGEN=3,
+                                                      indpb=0.02,
+                                                      tournsize=15,
+                                                      matepar=0.5,
+                                                      mutpar=1
+                                                      )
 
-    optimizer = EvolutionStrategiesOptimizer(
-        traj,
-        optimizee_create_individual=optimizee.create_individual,
-        optimizee_fitness_weights=(1.,),
-        parameters=optimizer_parameters,
-        optimizee_bounding_func=optimizee.bounding_func)
-
+    optimizer = GeneticAlgorithmOptimizer(traj, optimizee_create_individual=optimizee.create_individual,
+                                          optimizee_fitness_weights=(-0.1,),
+                                          parameters=optimizer_parameters)
     # Run experiment
     experiment.run_experiment(optimizer=optimizer, optimizee=optimizee,
                               optimizer_parameters=optimizer_parameters,

@@ -34,7 +34,7 @@ class NeuroEvolutionOptimizee(Optimizee):
         # create plasticity {0,1} for on/off
         plasticity = self.rng.integers(2, size=78)
         # create delays
-        delays = self.rng.uniform(1, 7, 78)
+        delays = self.rng.integers(low=1, high=7, size=78)
         # create individual
         individual = {
             'weights': weights,
@@ -52,9 +52,9 @@ class NeuroEvolutionOptimizee(Optimizee):
         Invokes a run of netlogo, reads in a file outputted (`resultN`) by
         netlogo with the fitness inside.
         """
-        weights = traj.weights
-        plasticity = traj.plasticity
-        delays = traj.delays
+        weights = traj.individual.weights
+        plasticity = traj.individual.plasticity
+        delays = traj.individual.delays
         # create directory individualN
         self.dir_path = os.path.join(self.param_path,
                                      'individual{}'.format(self.ind_idx))
@@ -66,20 +66,24 @@ class NeuroEvolutionOptimizee(Optimizee):
         }
         # create the csv file and save it in the created directory
         df = pd.DataFrame(individual)
-        df.to_csv(self.dir_path, 'individual{}'.format(self.ind_idx))
-        # call netlogo
+        df = df.T
+        df.to_csv(os.path.join(self.dir_path, 'individual_config.csv'.format(self.ind_idx)),
+                  header=False, index=False)
+        # copy model to the created directory
         # TODO adapt next line or make it a parameter for the bin file
         #  or config file
+        model_path = ''
+        shutil.copyfile(model_path, os.path.join(self.dir_path, 'model.nlogo'))
+        # call netlogo
+        subdir_path = os.path.join(self.dir_path, 'model.nlogo')
         os.system(
-            'bash /opt/netlogo/netlogo-headless.sh --model ~/Documents/toolbox/L2L/l2l/optimizees/neuroevolution/SpikingLab_Demo_Artificial_Insect_and_STDP_FlexTopology_L2L_FileParameters_27012021.nlogo --experiment experiment1 --table table1.csv')
-        file_path = os.path.join(self.dir_path, "result{}.csv".format(self.ind_idx))
+            'bash /opt/netlogo/netlogo-headless.sh --model {} --experiment experiment1 --table table1.csv'.format(subdir_path))
+        file_path = os.path.join(self.dir_path, "individual_result.csv")
         while not os.path.isfile(file_path):
-            time.sleep(10)
+            time.sleep(5)
         # Read the results file after the netlogo run
-        csv_path = os.path.join(
-            self.dir_path, 'result{}.csv'.format(traj.individual.ind_idx))
-        csv = pd.read_csv(csv_path)
-        fitness = csv.iloc[0]
+        csv = pd.read_csv(file_path)
+        fitness = csv.iloc[-1]
         # remove directory 
         shutil.rmtree(self.dir_path)
         return fitness
