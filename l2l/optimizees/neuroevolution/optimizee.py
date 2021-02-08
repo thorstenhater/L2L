@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import pandas as pd
+import shutil
 import time
 from collections import namedtuple
 from l2l.optimizees.optimizee import Optimizee
@@ -79,6 +80,8 @@ class NeuroEvolutionOptimizee(Optimizee):
             self.dir_path, 'result{}.csv'.format(traj.individual.ind_idx))
         csv = pd.read_csv(csv_path)
         fitness = csv.iloc[0]
+        # remove directory 
+        shutil.rmtree(self.dir_path)
         return fitness
 
     def bounding_func(self, individual):
