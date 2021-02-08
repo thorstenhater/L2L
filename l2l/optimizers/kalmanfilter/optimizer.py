@@ -317,15 +317,22 @@ class EnsembleKalmanFilter(Optimizer):
                 # pick a random number from the histograms and sample from there
                 rnd_indx = np.random.randint(len(hists))
                 hist_dist = interpolated[rnd_indx]
-                # TODO add noise
-                worst_individuals[wi] = hist_dist
+                # add gaussian noise
+                noise = np.random.normal(loc=hist_dist.mean(),
+                                         scale=hist_dist.std(),
+                                         size=len(hist_dist))
+                worst_individuals[wi] = hist_dist + noise
             elif pick_method == 'best_first':
                 for ipol in range(len(interpolated)):
                     pp = kwargs['pick_probability']
                     rnd_pp = np.random.rand()
                     if pp >= rnd_pp:
-                        # TODO add Noise
-                        worst_individuals[wi] = interpolated[ipol]
+                        interp = interpolated[ipol]
+                        # add gaussian noise
+                        noise = np.random.normal(loc=interp.mean(),
+                                                 scale=interp.std(),
+                                                 size=len(interp))
+                        worst_individuals[wi] = interp + noise
         sorted_individuals[sorted_individuals - len(worst_individuals):] = worst_individuals
         return sorted_individuals
 
