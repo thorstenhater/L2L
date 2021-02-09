@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import pathlib
 import shutil
+import subprocess
 import time
 from collections import namedtuple
 from l2l.optimizees.optimizee import Optimizee
@@ -91,9 +92,13 @@ class NeuroEvolutionOptimizee(Optimizee):
         shutil.copyfile(model_path, os.path.join(self.dir_path, model_name))
         # call netlogo
         subdir_path = os.path.join(self.dir_path, model_name)
-        os.system(
-            'bash {headless} --model {subdir} --experiment experiment1 --table table1.csv'.format(
-                headless=headless_path, subdir=subdir_path))
+        try:
+            subprocess.run(['bash', '{}'.format(headless_path),
+                            '--model', '{}'.format(subdir_path),
+                            '--experiment', 'experiment1',
+                            '--table', 'table1.csv'])
+        except subprocess.CalledProcessError as cpe:
+            print('Optimizee process error {}'.format(cpe))
         file_path = os.path.join(self.dir_path, "individual_result.csv")
         while not os.path.isfile(file_path):
             time.sleep(5)
