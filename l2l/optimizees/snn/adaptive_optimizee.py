@@ -37,9 +37,10 @@ class AdaptiveOptimizee(Optimizee):
         # Indices per generation and individual
         self.gen_idx = traj.individual.generation
         self.ind_idx = traj.individual.ind_idx
-        seed = np.uint32(self.config['seed']) * self.ind_idx
+        seed = np.uint32(self.config['seed'])
         self.random_state = np.random.RandomState(seed=seed)
         nest.SetKernelStatus({"rng_seeds": [seed]})
+        np.random.seed(seed)
 
         # Number of neurons per layer
         self.n_input_neurons = self.config['n_input']
