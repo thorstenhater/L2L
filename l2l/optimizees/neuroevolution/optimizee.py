@@ -66,7 +66,13 @@ class NeuroEvolutionOptimizee(Optimizee):
         # create directory individualN
         self.dir_path = os.path.join(self.param_path,
                                      'individual{}'.format(self.ind_idx))
-        os.mkdir(self.dir_path)
+        try:
+            os.mkdir(self.dir_path)
+        except FileExistsError:
+            shutil.rmtree(self.dir_path)
+            os.mkdir(self.dir_path)
+        else:
+            print('Cannot create directory {}'.format(self.dir_path))
         individual = {
             'weights': weights,
             'plasticity': plasticity,
@@ -93,7 +99,10 @@ class NeuroEvolutionOptimizee(Optimizee):
             time.sleep(5)
         # Read the results file after the netlogo run
         csv = pd.read_csv(file_path, header=None, na_filter=False)
+        # We need the last row and first column
         fitness = csv.iloc[-1][0]
+        print('Fitness in generation {} individual {}'.format(self.generation,
+                                                              self.ind_idx))
         # remove directory
         shutil.rmtree(self.dir_path)
         return (fitness,)
