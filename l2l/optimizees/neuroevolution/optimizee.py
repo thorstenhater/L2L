@@ -55,6 +55,8 @@ class NeuroEvolutionOptimizee(Optimizee):
         weights = traj.individual.weights
         plasticity = traj.individual.plasticity
         delays = traj.individual.delays
+        self.ind_idx = traj.individual.ind_idx
+        self.generation = traj.individual.generation
         # create directory individualN
         self.dir_path = os.path.join(self.param_path,
                                      'individual{}'.format(self.ind_idx))
@@ -62,7 +64,7 @@ class NeuroEvolutionOptimizee(Optimizee):
         individual = {
             'weights': weights,
             'plasticity': plasticity,
-            'delays': delays
+            'delays': delays.astype(int)
         }
         # create the csv file and save it in the created directory
         df = pd.DataFrame(individual)
@@ -82,11 +84,11 @@ class NeuroEvolutionOptimizee(Optimizee):
         while not os.path.isfile(file_path):
             time.sleep(5)
         # Read the results file after the netlogo run
-        csv = pd.read_csv(file_path)
-        fitness = csv.iloc[-1]
-        # remove directory 
+        csv = pd.read_csv(file_path, header=None, na_filter=False)
+        fitness = csv.iloc[-1][0]
+        # remove directory
         shutil.rmtree(self.dir_path)
-        return fitness
+        return (fitness,)
 
     def bounding_func(self, individual):
         return individual
