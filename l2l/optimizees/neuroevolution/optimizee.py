@@ -1,6 +1,8 @@
+import json
 import numpy as np
 import os
 import pandas as pd
+import pathlib
 import shutil
 import time
 from collections import namedtuple
@@ -16,9 +18,13 @@ class NeuroEvolutionOptimizee(Optimizee):
         self.param_path = parameters.path
         self.ind_idx = traj.individual.ind_idx
         self.generation = traj.individual.generation
-        seed = parameters.seed * self.ind_idx + self.generation
-        self.rng = np.random.default_rng(seed)
+        self.rng = np.random.default_rng(parameters.seed)
         self.dir_path = ''
+        fp = pathlib.Path(__file__).parent.absolute()
+        print(os.path.join(str(fp), 'config.json'))
+        with open(
+                os.path.join(str(fp), 'config.json')) as jsonfile:
+            self.config = json.load(jsonfile)
 
     def create_individual(self):
         """
@@ -71,15 +77,17 @@ class NeuroEvolutionOptimizee(Optimizee):
         df = df.T
         df.to_csv(os.path.join(self.dir_path, 'individual_config.csv'.format(self.ind_idx)),
                   header=False, index=False)
+        # get paths etc. from config file
+        model_path = self.config['model_path']
+        model_name = self.config['model_name']
+        headless_path = self.config['netlogo_headless_path']
         # copy model to the created directory
-        # TODO adapt next line or make it a parameter for the bin file
-        #  or config file
-        model_path = ''
-        shutil.copyfile(model_path, os.path.join(self.dir_path, 'model.nlogo'))
+        shutil.copyfile(model_path, os.path.join(self.dir_path, model_name))
         # call netlogo
-        subdir_path = os.path.join(self.dir_path, 'model.nlogo')
+        subdir_path = os.path.join(self.dir_path, model_name)
         os.system(
-            'bash /opt/netlogo/netlogo-headless.sh --model {} --experiment experiment1 --table table1.csv'.format(subdir_path))
+            'bash {headless} --model {subdir} --experiment experiment1 --table table1.csv'.format(
+                headless=headless_path, subdir=subdir_path))
         file_path = os.path.join(self.dir_path, "individual_result.csv")
         while not os.path.isfile(file_path):
             time.sleep(5)
