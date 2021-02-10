@@ -20,11 +20,15 @@ logger = logging.getLogger("optimizers.kalmanfilter")
 EnsembleKalmanFilterParameters = namedtuple(
     'EnsembleKalmanFilter', ['gamma', 'maxit', 'n_iteration',
                              'pop_size', 'n_batches', 'online', 'seed', 'path',
-                             'stop_criterion']
+                             'stop_criterion',
+                             'sample', 'best_n', 'worst_n', 'sampling_method',
+                             'pick_method', 'kwargs'],
+    defaults=(False, 0.25, 0.25, 'interpolate', 'random', {'bins': 'auto',
+                                                           'pick_probability': 0.9})
 )
 
 EnsembleKalmanFilterParameters.__doc__ = """
-:param gamma: float, A small value, multiplied with the eye matrix  
+:param gamma: float, A small value, multiplied with the eye matrix
 :param maxit: int, Epochs to run inside the Kalman Filter
 :param n_iteration: int, Number of iterations to perform
 :param pop_size: int, Minimal number of individuals per simulation.
@@ -32,9 +36,24 @@ EnsembleKalmanFilterParameters.__doc__ = """
 :param n_batches: int, Number of mini-batches to use for training
 :param online: bool, Indicates if only one data point will used, 
     Default: False
-:param sampling_generation: After `sampling_generation` steps a gaussian sampling 
-    on the parameters of the best individual is done, ranked by the fitness
-    value 
+:param sampling: bool, If sampling of best individuals should be done
+:param best_n: float, Percentage for best `n` individual. In combination with
+    `sampling`. Default: 0.25
+:param worst_n: float, Percentage for worst `n` individual. In combination with
+    `sampling`. Default: 0.25
+:param sampling_method: str, Method to sample from. `interpolate` or
+    `rv_histogram` are accepted. In combination with `sampling`.
+    Default: 'interpolate'
+:param pick_method: str, How the best individuals should be taken. `random` or
+    `best_first` must be set. If `pick_probability` is taken then a key
+    word argument `pick_probability` with a float value is needed.
+    In combination with `sampling`.
+    Default: 'random'.
+:param kwargs: dict, key word arguments if `sampling`.
+    - `pick_probability` - float, probability to pick the first best individual
+      Default: 0.9
+    - `bins` - str or int, bins for the histogram to interpolate.
+      Default: 'auto'
 :param seed: The random seed used to sample and fit the distribution. 
     Uses a random generator seeded with this seed.
 :param path: String, Root path for the file saving and loading the connections
@@ -84,6 +103,20 @@ class EnsembleKalmanFilter(Optimizer):
                              comment='Root folder for the simulation')
         traj.f_add_parameter('stop_criterion', parameters.stop_criterion,
                              comment='stopping threshold')
+        traj.f_add_parameter('sample', parameters.sample,
+                             comment='sampling on/off')
+        if parameters.sample:
+            traj.f_add_parameter('best_n', parameters.best_n,
+                                 comment='best n individuals')
+            traj.f_add_parameter('worst_n', parameters.worst_n,
+                                 comment='worst n individuals')
+            traj.f_add_parameter('sampling_method', parameters.sampling_method,
+                                 comment='sample method')
+            traj.f_add_parameter('pick_method', parameters.pick_method,
+                                 comment='how to pick random individual')
+            traj.f_add_parameter('kwargs', parameters.kwargs,
+                                 comment='dict with key word arguments')
+
         #: The population (i.e. list of individuals) to be evaluated at the
         # next iteration
         size_eeo, size_eio, size_ieo, size_iio = self.optimizee_prepare()
@@ -169,8 +202,8 @@ class EnsembleKalmanFilter(Optimizer):
         gamma = np.eye(len(self.target_label)) * traj.gamma
 
         ensemble_size = traj.pop_size
-        # TODO before scaling the weights, check for the shapes and adjust
-        #  with `_sample_from_individual`
+        # before scaling the weights, check for the shapes and adjust
+        # with `_sample_from_individual`
         # weights = [traj.current_results[i][1]['connection_weights'] for i in
         #           range(ensemble_size)]
         weights = [np.concatenate(
@@ -181,9 +214,16 @@ class EnsembleKalmanFilter(Optimizer):
                    range(ensemble_size)]
         self.current_fitness = np.max(fitness)
 
-
-        # TODO make sampling optional
-        # weights = self._sample_from_individual(weights, fitness, bins=10000)
+        # sampling step
+        if traj.sample:
+            weights = self.sample_from_individuals(individuals=weights,
+                                                   fitness=fitness,
+                                                   sampling_method=traj.sampling_method,
+                                                   pick_method=traj.pick_method,
+                                                   best_n=traj.best_n,
+                                                   worst_n=traj.worst_n,
+                                                   **traj.kwargs
+                                                   )
         # ens, scaler = self._scale_weights(weights, normalize=True,
         #                                   method=pp.MinMaxScaler)
         ens = np.array(weights)
@@ -284,7 +324,7 @@ class EnsembleKalmanFilter(Optimizer):
         :param pick_method: str
             Either picks the best individual randomly 'random' or it picks the
             iterates through the best individuals and picks with a certain
-            probability `pick_probability` the first best individual
+            probability `best_first` the first best individual
             `best_first`. In the latter case must be used with the key word
             argument `pick_probability`. Default: 'random'
         :param kwargs:
