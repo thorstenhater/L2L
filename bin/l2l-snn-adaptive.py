@@ -19,7 +19,7 @@ def run_experiment():
 
     # Outer-loop optimizer initialization
     optimizer_seed = 1234
-    pop_size = 1
+    pop_size = 2
     optimizer_parameters = EnsembleKalmanFilterParameters(gamma=0.01,
                                                           maxit=1,
                                                           n_iteration=3,
@@ -28,7 +28,11 @@ def run_experiment():
                                                           online=False,
                                                           seed=optimizer_seed,
                                                           stop_criterion=1e-2,
-                                                          path=experiment.root_dir_path)
+                                                          path=experiment.root_dir_path,
+                                                          scale_weights=True,
+                                                          sample=True,
+                                                          pick_method='gaussian',
+                                                          )
 
     optimizer = EnsembleKalmanFilter(traj,
                                      optimizee_prepare=optimizee.connect_network,

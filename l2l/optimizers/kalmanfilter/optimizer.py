@@ -21,10 +21,11 @@ EnsembleKalmanFilterParameters = namedtuple(
     'EnsembleKalmanFilter', ['gamma', 'maxit', 'n_iteration',
                              'pop_size', 'n_batches', 'online', 'seed', 'path',
                              'stop_criterion',
-                             'sample', 'best_n', 'worst_n', 'sampling_method',
-                             'pick_method', 'kwargs'],
-    defaults=(False, 0.25, 0.25, 'interpolate', 'random', {'bins': 'auto',
-                                                           'pick_probability': 0.9})
+                             'scale_weights', 'sample',
+                             'best_n', 'worst_n', 'pick_method',
+                             'kwargs'],
+    defaults=(True, False, 0.25, 0.25, 'random', {'pick_probability': 0.7,
+                                                  'loc': 0, 'scale': 0.1})
 )
 
 EnsembleKalmanFilterParameters.__doc__ = """
@@ -36,24 +37,28 @@ EnsembleKalmanFilterParameters.__doc__ = """
 :param n_batches: int, Number of mini-batches to use for training
 :param online: bool, Indicates if only one data point will used, 
     Default: False
+:param scale_weights: bool, scales weights between [0, 1]
 :param sampling: bool, If sampling of best individuals should be done
 :param best_n: float, Percentage for best `n` individual. In combination with
     `sampling`. Default: 0.25
 :param worst_n: float, Percentage for worst `n` individual. In combination with
     `sampling`. Default: 0.25
-:param sampling_method: str, Method to sample from. `interpolate` or
-    `rv_histogram` are accepted. In combination with `sampling`.
-    Default: 'interpolate'
 :param pick_method: str, How the best individuals should be taken. `random` or
     `best_first` must be set. If `pick_probability` is taken then a key
-    word argument `pick_probability` with a float value is needed.
+    word argument `pick_probability` with a float value is needed. `gaussian` 
+    creates a multivariate normal distribution using the best individuals 
+    which will replace the worst individuals. (see also :param kwargs) 
     In combination with `sampling`.
     Default: 'random'.
-:param kwargs: dict, key word arguments if `sampling`.
+:param kwargs: dict, key word arguments if `sampling` is True.
     - `pick_probability` - float, probability to pick the first best individual
-      Default: 0.9
-    - `bins` - str or int, bins for the histogram to interpolate.
-      Default: 'auto'
+      Default: 0.7
+    - loc - float, mean of the gaussian normal, can be specified if 
+      `pick_method` is `random` or `pick_probability`
+      Default: 0.
+    - scale - float, std scale of the gaussian normal, can be specified if 
+      `pick_method` is `random` or `pick_probability` 
+      Default: 0.1
 :param seed: The random seed used to sample and fit the distribution. 
     Uses a random generator seeded with this seed.
 :param path: String, Root path for the file saving and loading the connections
@@ -105,13 +110,13 @@ class EnsembleKalmanFilter(Optimizer):
                              comment='stopping threshold')
         traj.f_add_parameter('sample', parameters.sample,
                              comment='sampling on/off')
+        traj.f_add_parameter('scale_weights', parameters.scale_weights,
+                             comment='scaling of weights')
         if parameters.sample:
             traj.f_add_parameter('best_n', parameters.best_n,
                                  comment='best n individuals')
             traj.f_add_parameter('worst_n', parameters.worst_n,
                                  comment='worst n individuals')
-            traj.f_add_parameter('sampling_method', parameters.sampling_method,
-                                 comment='sample method')
             traj.f_add_parameter('pick_method', parameters.pick_method,
                                  comment='how to pick random individual')
             traj.f_add_parameter('kwargs', parameters.kwargs,
@@ -214,20 +219,23 @@ class EnsembleKalmanFilter(Optimizer):
                    range(ensemble_size)]
         self.current_fitness = np.max(fitness)
 
+        ens = np.array(weights)
+        if traj.scale_weights:
+            ens = (ens - ens.min()) / (ens.max() - ens.min())
+            # ens, scaler = self._scale_weights(weights, normalize=True,
+            #                                   method=pp.MinMaxScaler)
+
         # sampling step
         if traj.sample:
-            weights = self.sample_from_individuals(individuals=weights,
-                                                   fitness=fitness,
-                                                   sampling_method=traj.sampling_method,
-                                                   pick_method=traj.pick_method,
-                                                   best_n=traj.best_n,
-                                                   worst_n=traj.worst_n,
-                                                   **traj.kwargs
-                                                   )
-        # ens, scaler = self._scale_weights(weights, normalize=True,
-        #                                   method=pp.MinMaxScaler)
-        ens = np.array(weights)
-        # ens = ens / np.max(ens)
+            ens = self.sample_from_individuals(individuals=ens,
+                                               fitness=fitness,
+                                               sampling_method=traj.sampling_method,
+                                               pick_method=traj.pick_method,
+                                               best_n=traj.best_n,
+                                               worst_n=traj.worst_n,
+                                               **traj.kwargs
+                                               )
+
         model_outs = np.array([traj.current_results[i][1]['model_out'] for i in
                                range(ensemble_size)])
         model_outs = model_outs.reshape((ensemble_size,
@@ -252,7 +260,11 @@ class EnsembleKalmanFilter(Optimizer):
                  model_output=model_outs,
                  gamma=gamma)
         # These are all the updated weights for each ensemble
-        results = enkf.ensemble.cpu().numpy()  # scaler.inverse_transform(enkf.ensemble)
+        results = enkf.ensemble.cpu().numpy()
+        if traj.scale_weights:
+            # rescale
+            results = results * (np.max(weights) - np.min(weights)) + np.min(weights)
+            # scaler.inverse_transform(results)
         self.plot_distribution(weights=results, gen=self.g, mean=True)
         if self.g % 1 == 0:
             self.weights_to_save.append(results)
@@ -298,95 +310,92 @@ class EnsembleKalmanFilter(Optimizer):
             weights = scaler.fit_transform(weights)
         return weights, scaler
 
-    def sample_from_individuals(self, individuals, fitness, bins='auto',
+    def sample_from_individuals(self, individuals, fitness,
                                 best_n=0.25, worst_n=0.25,
-                                sampling_method='interpolate',
                                 pick_method='random',
                                 **kwargs):
         """
-        Samples from the best `n` individuals via different interpolation
-        methods.
+        Samples from the best `n` individuals via different methods.
 
         :param individuals: array_like
             Input data, the individuals
         :param fitness: array_like
             Fitness array
-        :param bins: int
-            Number of bins needed for the histogram which will be used in the
-            sampling step. Default: 'auto'
         :param best_n: float
             Percentage of best individuals to sample from
         :param worst_n:
             Percentage of worst individuals to replaced by sampled individuals
-        :param sampling_method: str
-            'interpolate' or 'rv_histogram', respective function from `scipy`
-            will be used. Default: 'interpolate'
         :param pick_method: str
             Either picks the best individual randomly 'random' or it picks the
             iterates through the best individuals and picks with a certain
             probability `best_first` the first best individual
             `best_first`. In the latter case must be used with the key word
-            argument `pick_probability`. Default: 'random'
+            argument `pick_probability`.  `gaussian` creates a multivariate
+            normal using the mean and covariance of the best individuals to
+            replace the worst individuals.
+            Default: 'random'
         :param kwargs:
             'pick_probability': float
                 Probability of picking the first best individual. Must be used
                 when `pick_method` is set to `pick_probability`.
+            'loc': float, mean of the gaussian normal, can be specified if
+               `pick_method` is `random` or `pick_probability`
+               Default: 0.
+            'scale': float, std scale of the gaussian normal, can be specified if
+                `pick_method` is `random` or `pick_probability`
+                 Default: 0.1
         :return: array_like
             New array of sampled individuals.
         """
-        # check if the sizes are different otherwise skip
-        if len(set(
-                [len(individuals[i]) for i in range(len(individuals))])) == 1:
-            return individuals
-        # best fitness should be here ~ 0 (which means correct choice)
+        # best fitness should be here ~ 1 (which means correct choice)
         # sort them from best to worst via the index of fitness
         # get indices
-        indices = np.argsort(fitness)
-        sorted_individuals = individuals[indices]
+        indices = np.argsort(fitness)[::-1]
+        sorted_individuals = np.array(individuals)[indices]
         # get best n individuals from the front
         best_individuals = sorted_individuals[:int(len(individuals) * best_n)]
         # get worst n individuals from the back
         worst_individuals = sorted_individuals[
                             len(individuals) - int(len(individuals) * worst_n):]
-        hists = [np.histogram(bi, bins) for bi in best_individuals]
-        hists = np.asarray(hists)
-        interpolated = self._sample(hists, sampling_method)
-        interpolated = np.asarray(interpolated)
         for wi in range(len(worst_individuals)):
             if pick_method == 'random':
-                # pick a random number from the histograms and sample from there
-                rnd_indx = np.random.randint(len(hists))
-                hist_dist = interpolated[rnd_indx]
+                # pick a random number for the best individuals add noise
+                rnd_indx = np.random.randint(len(best_individuals))
+                ind = best_individuals[rnd_indx]
                 # add gaussian noise
-                noise = np.random.normal(loc=hist_dist.mean(),
-                                         scale=hist_dist.std(),
-                                         size=len(hist_dist))
-                worst_individuals[wi] = hist_dist + noise
+                noise = np.random.normal(loc=kwargs['loc'],
+                                         scale=kwargs['scale'],
+                                         size=len(ind))
+                worst_individuals[wi] = ind + noise
             elif pick_method == 'best_first':
-                for ipol in range(len(interpolated)):
+                for bi in best_individuals:
                     pp = kwargs['pick_probability']
                     rnd_pp = np.random.rand()
                     if pp >= rnd_pp:
-                        interp = interpolated[ipol]
                         # add gaussian noise
-                        noise = np.random.normal(loc=interp.mean(),
-                                                 scale=interp.std(),
-                                                 size=len(interp))
-                        worst_individuals[wi] = interp + noise
-        sorted_individuals[sorted_individuals - len(worst_individuals):] = worst_individuals
+                        noise = np.random.normal(loc=kwargs['loc'],
+                                                 scale=kwargs['scale'],
+                                                 size=len(bi))
+                        worst_individuals[wi] = bi + noise
+            else:
+                sampled = self._sample(best_individuals, pick_method)
+                worst_individuals = sampled
+                break
+        sorted_individuals[len(sorted_individuals) - len(worst_individuals):] = worst_individuals
         return sorted_individuals
 
-    @staticmethod
-    def _sample(histograms, method='interpolate'):
-        if method == 'interpolate':
-            interpolated = [scipy.interpolate.interp1d(h[1][:-1], h[0]) for h in
-                            histograms]
+    def _sample(self, individuals, method='gaussian'):
+        if method == 'gaussian':
+            dist = Gaussian()
+            dist.init_random_state(self.random_state)
+            dist.fit(individuals)
+            sampled = dist.sample(len(individuals))
         elif method == 'rv_histogram':
-            interpolated = [scipy.stats.rv_histogram(h) for h in histograms]
+            sampled = [scipy.stats.rv_histogram(h) for h in individuals]
         else:
             raise KeyError('Sampling method {} not known'.format(method))
-        interpolated = np.asarray(interpolated)
-        return interpolated
+        sampled = np.asarray(sampled)
+        return sampled
 
     @staticmethod
     def adjust_similar_lengths(individuals, fitness, bins='auto',
@@ -452,33 +461,6 @@ class EnsembleKalmanFilter(Optimizer):
         plt.ylabel('mean squared error')
         plt.savefig('fitnesses.eps', format='eps')
         plt.close()
-
-    @staticmethod
-    def _create_individual_distribution(random_state, weights,
-                                        ensemble_size):
-        dist = Gaussian()
-        dist.init_random_state(random_state)
-        dist.fit(weights)
-        new_individuals = dist.sample(ensemble_size)
-        return new_individuals
-
-    def _new_individuals(self, traj, fitnesses, individuals, ensemble_size):
-        """
-        Sample new individuals by first ranking and then sampling from a
-        gaussian distribution.
-        """
-        ranking_idx = list(reversed(np.argsort(fitnesses)))
-        best_fitness = fitnesses[ranking_idx][0]
-        best_ranking_idx = ranking_idx[0]
-        best_individual = individuals[best_ranking_idx]
-        # now do the sampling
-        params = [
-            self._create_individual_distribution(self.random_state,
-                                                 individuals[
-                                                     best_ranking_idx].params,
-                                                 ensemble_size)
-            for _ in range(traj.pop_size)]
-        return params, best_fitness, best_individual
 
     @staticmethod
     def _remove_files(suffixes):
