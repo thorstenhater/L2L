@@ -374,10 +374,11 @@ class AdaptiveOptimizee(Optimizee):
         # Bulk to out
         conn_dict_e = {'rule': 'fixed_indegree',
                        # 0.3 * self.number_out_exc_neurons
-                       'indegree': int(0.5 * self.n_bulk_ex_neurons)}
+                       'indegree': int(0.75 * self.n_bulk_ex_neurons)}
         conn_dict_i = {'rule': 'fixed_indegree',
                        # 0.2 * self.number_out_exc_neurons
-                       'indegree': int(0.5 * self.n_bulk_ex_neurons)}
+                       'indegree': int(0.75 * self.n_bulk_in_neurons)}
+
         syn_dict_e = {"model": "random_synapse",
                       'weight': {"distribution": "normal",
                                  "mu": self.psc_e,
@@ -389,11 +390,11 @@ class AdaptiveOptimizee(Optimizee):
         for j in range(self.n_output_clusters):
             nest.Connect(self.nodes_e, self.nodes_out_e[j], conn_dict_e,
                          syn_spec=syn_dict_e)
-            nest.Connect(self.nodes_e, self.nodes_out_i[j], conn_dict_i,
+            nest.Connect(self.nodes_e, self.nodes_out_i[j], conn_dict_e,
                          syn_spec=syn_dict_e)
             nest.Connect(self.nodes_i, self.nodes_out_e[j], conn_dict_i,
                          syn_spec=syn_dict_i)
-            nest.Connect(self.nodes_i, self.nodes_out_i[j], conn_dict_e,
+            nest.Connect(self.nodes_i, self.nodes_out_i[j], conn_dict_i,
                          syn_spec=syn_dict_i)
 
     def connect_external_input(self):
@@ -444,11 +445,17 @@ class AdaptiveOptimizee(Optimizee):
             spikes = nest.GetStatus(self.bulks_detector_ex, keys="events")[0]
             visualize.spike_plot(spikes, "Bulk spikes ex",
                                  idx=indx, gen_idx=gen_idx, save=save, path=path)
-            spikes_out_e = nest.GetStatus(self.out_detector_e, keys="events")[0]
-            visualize.spike_plot(spikes_out_e, "Out spikes ex", idx=indx,
+            spikes_out_e = nest.GetStatus([self.out_detector_e[0]], keys="events")
+            visualize.spike_plot(spikes_out_e[0], "Out spikes ex 0", idx=indx,
                                  gen_idx=gen_idx, save=save, path=path)
-            spikes_out_i = nest.GetStatus(self.out_detector_i, keys="events")[0]
-            visualize.spike_plot(spikes_out_i, "Out spikes in", idx=indx,
+            spikes_out_e = nest.GetStatus([self.out_detector_e[1]], keys="events")
+            visualize.spike_plot(spikes_out_e[0], "Out spikes ex 1", idx=indx,
+                                 gen_idx=gen_idx, save=save, path=path)
+            spikes_out_i = nest.GetStatus([self.out_detector_i[0]], keys="events")
+            visualize.spike_plot(spikes_out_i[0], "Out spikes in 0", idx=indx,
+                                 gen_idx=gen_idx, save=save, path=path)
+            spikes_out_i = nest.GetStatus([self.out_detector_i[1]], keys="events")
+            visualize.spike_plot(spikes_out_i[0], "Out spikes in 1", idx=indx,
                                  gen_idx=gen_idx, save=save, path=path)
 
     def record_ca(self, record_out=False):
