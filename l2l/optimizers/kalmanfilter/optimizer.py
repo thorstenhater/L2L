@@ -458,7 +458,7 @@ class EnsembleKalmanFilter(Optimizer):
         plt.fill_between(range(len(mu)), lower_bound, upper_bound, alpha=0.3)
         # plt.plot(np.ones_like(f_) * i, np.ravel(f), '.')
         plt.xlabel('Generations')
-        plt.ylabel('mean squared error')
+        plt.ylabel('Fitness')
         plt.savefig('fitnesses.eps', format='eps')
         plt.close()
 
