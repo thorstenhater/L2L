@@ -5,6 +5,7 @@ import arbor as arb
 from l2l.optimizees.optimizee import Optimizee
 from random import randrange as rand
 import pandas as pd
+import numpy as np
 
 @dataclass
 class PhyPar:
@@ -87,24 +88,22 @@ class ArbSCOptimizee(Optimizee):
 
     def simulate(self, traj):
         fit, swc, ref = self.fns
-        segment_tree = arb.load_swc_allen(swc, no_gaps=False)
-        self.morphology = arb.morphology(segment_tree)
+        self.morphology = arb.load_swc_allen(swc, no_gaps=False)
         self.labels = arb.label_dict({'soma': '(tag 1)', 'axon': '(tag 2)',
                                       'dend': '(tag 3)', 'apic': '(tag 4)',
                                       'center': '(location 0 0.5)'})
-        self.reference = pd.read_csv(ref)['U/mV'].values*1000.0
-        cell = arb.cable_cell(self.morphology, self.labels)
-        cell.compartments_length(20)
-        cell.set_properties(tempK=self.defaults.tempK, Vm=self.defaults.Vm,
-                            cm=self.defaults.cm, rL=self.defaults.rL)
+        print("Reading ref {}", ref)
+        self.reference = pd.read_csv(ref)['U/mV'].values[:-1]*1000.0
+        decor = arb.decor()
+
+        decor.discretization(arb.cv_policy_max_extent(20))
+        decor.set_property(tempK=self.defaults.tempK, Vm=self.defaults.Vm, cm=self.defaults.cm, rL=self.defaults.rL)
         for region, vs in self.regions:
-            cell.paint(f'"{region}"',
-                       tempK=vs.tempK, Vm=vs.Vm, cm=vs.cm, rL=vs.rL)
+            decor.paint(f'"{region}"', tempK=vs.tempK, Vm=vs.Vm, cm=vs.cm, rL=vs.rL)
         for region, ion, e in self.ions:
-            cell.paint(f'"{region}"', ion, rev_pot=e)
-        cell.set_ion('ca',
-                     int_con=5e-5, ext_con=2.0,
-                     method=arb.mechanism('nernst/x=ca'))
+            decor.paint(f'"{region}"', ion, rev_pot=e)
+        decor.set_ion('ca', int_con=5e-5, ext_con=2.0, method=arb.mechanism('nernst/x=ca'))
+
 
         tmp = defaultdict(dict)
         print(traj)
@@ -114,13 +113,15 @@ class ArbSCOptimizee(Optimizee):
             tmp[(region, mech)][valuename] = val
 
         for (region, mech), values in tmp.items():
-            cell.paint(f'"{region}"', arb.mechanism(mech, values))
+            decor.paint(f'"{region}"', arb.mechanism(mech, values))
 
-        cell.place('"center"', arb.iclamp(200, 1000, 0.15))
+
+        decor.place('"center"', arb.iclamp(200, 1000, 0.15))
+        cell = arb.cable_cell(self.morphology, self.labels, decor)
         model = arb.single_cell_model(cell)
         model.probe('voltage', '"center"', frequency=200000)
-        model.properties.catalogue = arb.allen_catalogue()
-        model.properties.catalogue.extend(arb.default_catalogue(), '')
+        model.catalogue = arb.allen_catalogue()
+        model.catalogue.extend(arb.default_catalogue(), '')
         model.run(tfinal=1400, dt=0.005)
         voltages = np.array(model.traces[0].value[:])
         return (((voltages - self.reference)**2).sum(), )
